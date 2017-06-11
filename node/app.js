@@ -663,7 +663,7 @@ function receivedPostback(event) {
       uri: 'https://graph.facebook.com/v2.9/' + group + "/members",
       qs: { access_token: PAGE_ACCESS_TOKEN },
       method: 'POST',
-      json: {
+      formData: {
         "member": senderID
       }
     }, function (error, response, body) {
