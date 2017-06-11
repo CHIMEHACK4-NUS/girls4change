@@ -402,10 +402,7 @@ function sendGroupsList(user_id, user_props)  {
           {
             "type": "postback",
             "title": "Join Group",
-            "payload": {
-              "type": "JOIN_GROUP",
-              "group": x.group
-            }
+            "payload": "JOIN_GROUP," + x.group
           }
         ]
       };
@@ -486,7 +483,7 @@ var database = {
       jobs: ["writer", "educator", "academia"],
       subjects: ["English"],
       min_grade: 1,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/English2.png",
@@ -494,7 +491,7 @@ var database = {
       jobs: ["writer", "educator", "academia", "social work"],
       subjects: ["English"],
       min_grade: 6,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/English3.png",
@@ -502,7 +499,7 @@ var database = {
       jobs: ["writer", "educator", "academia"],
       subjects: ["English"],
       min_grade: 5,
-      group: "1970897529862706"
+      group: "1970897529862706" // CORRECT
     },
     {
       image_url: SERVER_URL + "/assets/English4.jpg",
@@ -510,7 +507,7 @@ var database = {
       jobs: ["writer", "educator", "academia", "social work"],
       subjects: ["English"],
       min_grade: 6,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/English5.png",
@@ -518,7 +515,7 @@ var database = {
       jobs: ["writer", "educator", "academia", "social work", "computer scientist", "engineer"],
       subjects: ["English"],
       min_grade: 2,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Math1.png",
@@ -526,7 +523,7 @@ var database = {
       jobs: ["educator", "engineer", "computer scientist"],
       subjects: ["Math"],
       min_grade: 2,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Math2.png",
@@ -534,7 +531,7 @@ var database = {
       jobs: ["educator", "engineer", "computer scientist"],
       subjects: ["Math"],
       min_grade: 3,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Math3.jpg",
@@ -542,7 +539,7 @@ var database = {
       jobs: ["educator", "engineer", "computer scientist", "social work", "academia"],
       subjects: ["Math"],
       min_grade: 4,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Math4.jpg",
@@ -550,7 +547,7 @@ var database = {
       jobs: ["educator", "engineer", "computer scientist"],
       subjects: ["Math"],
       min_grade: 3,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Math5.jpg",
@@ -558,7 +555,7 @@ var database = {
       jobs: ["educator", "engineer", "computer scientist", "social work"],
       subjects: ["Math"],
       min_grade: 1,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Programming1.png",
@@ -566,7 +563,7 @@ var database = {
       jobs: ["engineer", "computer scientist"],
       subjects: ["Programming"],
       min_grade: 7,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Programming2.png",
@@ -574,7 +571,7 @@ var database = {
       jobs: ["engineer", "computer scientist", "social work", "academic"],
       subjects: ["Programming"],
       min_grade: 8,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Programming3.jpg",
@@ -582,7 +579,7 @@ var database = {
       jobs: ["engineer", "computer scientist"],
       subjects: ["Programming"],
       min_grade: 6,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Programming4.jpg",
@@ -590,7 +587,7 @@ var database = {
       jobs: ["engineer", "computer scientist"],
       subjects: ["Programming"],
       min_grade: 3,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/Programming5.jpg",
@@ -598,7 +595,7 @@ var database = {
       jobs: ["engineer", "computer scientist"],
       subjects: ["Programming"],
       min_grade: 5,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     }
   ]
 }
@@ -660,8 +657,8 @@ function receivedPostback(event) {
 
   // When a postback is called, we'll send a message back to the sender to 
   // let them know it was successful
-  if (payload && payload.type == "JOIN_GROUP") {
-    console.log("JOIN GROUP ", group);
+  if (payload.indexOf("JOIN_GROUP") == 0) {
+    console.log("JOIN GROUP ", payload.split(",")[1]);
   } else {
     sendTextMessage(senderID, "Postback called");
   }
