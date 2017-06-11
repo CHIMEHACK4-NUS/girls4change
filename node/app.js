@@ -422,7 +422,7 @@ function sendApiAiMessages(user_id, messages) {
 
   var textMessages = messages.filter((x) => x.type == 0);
 
-  if (textMessages.length > 0) {
+  if (textMessages.length > 0 && textMessages[0].speech.length > 0) {
     sendTextMessage(user_id, textMessages[0].speech);
   }
 
