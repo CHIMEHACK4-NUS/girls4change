@@ -247,7 +247,7 @@ function receivedMessage(event) {
     console.log("Quick reply for message %s with payload %s",
       messageId, quickReplyPayload);
 
-      sendToApiAi(senderID, quickReplyPayload.quick_reply.payload);
+      sendToApiAi(senderID, quickReplyPayload);
       
     return;
   }
