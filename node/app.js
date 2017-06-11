@@ -16,8 +16,10 @@ const
   crypto = require('crypto'),
   express = require('express'),
   https = require('https'),  
-  request = require('request');
+  request = require('request'),
+  apiai = require('apiai');
 
+var apiai_app = apiai("e04a7358ee1a474d846d05fd679b7a8c");
 var app = express();
 app.set('port', 1882);
 app.set('view engine', 'ejs');
@@ -255,66 +257,168 @@ function receivedMessage(event) {
     // keywords and send back the corresponding example. Otherwise, just echo
     // the text we received.
     switch (messageText) {
-      case 'image':
-        sendImageMessage(senderID);
-        break;
+      // case 'image':
+      //   sendImageMessage(senderID);
+      //   break;
 
-      case 'gif':
-        sendGifMessage(senderID);
-        break;
+      // case 'gif':
+      //   sendGifMessage(senderID);
+      //   break;
 
-      case 'audio':
-        sendAudioMessage(senderID);
-        break;
+      // case 'audio':
+      //   sendAudioMessage(senderID);
+      //   break;
 
-      case 'video':
-        sendVideoMessage(senderID);
-        break;
+      // case 'video':
+      //   sendVideoMessage(senderID);
+      //   break;
 
-      case 'file':
-        sendFileMessage(senderID);
-        break;
+      // case 'file':
+      //   sendFileMessage(senderID);
+      //   break;
 
-      case 'button':
-        sendButtonMessage(senderID);
-        break;
+      // case 'button':
+      //   sendButtonMessage(senderID);
+      //   break;
 
-      case 'generic':
-        sendGenericMessage(senderID);
-        break;
+      // case 'generic':
+      //   sendGenericMessage(senderID);
+      //   break;
 
-      case 'receipt':
-        sendReceiptMessage(senderID);
-        break;
+      // case 'receipt':
+      //   sendReceiptMessage(senderID);
+      //   break;
 
-      case 'quick reply':
-        sendQuickReply(senderID);
-        break;        
+      // case 'quick reply':
+      //   sendQuickReply(senderID);
+      //   break;        
 
-      case 'read receipt':
-        sendReadReceipt(senderID);
-        break;        
+      // case 'read receipt':
+      //   sendReadReceipt(senderID);
+      //   break;        
 
-      case 'typing on':
-        sendTypingOn(senderID);
-        break;        
+      // case 'typing on':
+      //   sendTypingOn(senderID);
+      //   break;        
 
-      case 'typing off':
-        sendTypingOff(senderID);
-        break;        
+      // case 'typing off':
+      //   sendTypingOff(senderID);
+      //   break;        
 
-      case 'account linking':
-        sendAccountLinking(senderID);
-        break;
+      // case 'account linking':
+      //   sendAccountLinking(senderID);
+      //   break;
 
       default:
-        sendTextMessage(senderID, messageText);
+        sendToApiAi(senderID, messageText);
     }
   } else if (messageAttachments) {
     sendTextMessage(senderID, "Message with attachment received");
   }
 }
 
+function sendToApiAi(senderID, messageText) {
+  console.log(senderID, messageText);
+  var request = apiai_app.textRequest(messageText, {
+      sessionId: senderID
+  });
+
+  request.on('response', function(response) {
+      console.log(senderID, response);
+      checkParamsForApiAi(senderID, response.result.parameters);
+      if (messageText == "TEST") {
+        var age = 15;
+        var subject = "Programming";
+        var grade = 2;
+        sendGroupsList(senderID, age, subject, grade);
+      } else {
+        sendApiAiMessages(senderID, response.result.fulfillment.messages);
+      }
+  });
+
+  request.on('error', function(error) {
+      console.error(error);
+  });
+
+  request.end();
+}
+
+function sendGroupsList(user_id, age, subject, grade)  {
+  sendGenericMessage(user_id, database.groups.filter((x) => {
+      if (x.subject == subject && gradeToLevel(grade) == x.level) {
+        return true;
+      } else {
+        return false;
+      }
+    }).map((x) => {
+      return {
+        "title": x.title,
+        "image_url": x.image_url,
+        "subtitle": x.subject + " / " + x.level,
+        "buttons": [
+          {
+            "type":"web_url",
+            "title": "LOL",
+            "url": "http://facebook.com"
+          }, 
+          {
+            "type": "postback",
+            "title": "LOL2",
+            "payload": "PAYLOAD"
+          }
+        ]
+      };
+    }));
+}
+
+function gradeToLevel(grade) {
+  if (grade >= 1 && grade <= 3) {
+    return "Beginner";
+  }
+
+  return "Hardcore";
+}
+
+function sendApiAiMessages(user_id, messages) {
+    messages.forEach((x) => {
+      switch(x.type) {
+        case 0:
+          sendTextMessage(user_id, x.speech);
+          break;
+        case 2:
+          sendQuickReply(user_id, x.title, x.replies);
+          break;
+      }
+    });
+}
+
+var database = {
+  users: [],
+  groups: [
+    {
+      image_url: SERVER_URL + "/assets/touch.png",
+      title: "Introduction to Python",
+      subject: "Programming",
+      level: "Beginner",
+      leader: "Amena"
+    },
+    {
+      image_url: SERVER_URL + "/assets/gearvrsq.png",
+      title: "Java in 5 Easy Lessons",
+      subject: "Programming",
+      level: "Beginner",
+      leader: "UNICEF Volunteer Teacher"
+    }
+  ]
+}
+
+function checkParamsForApiAi(user_id, parameters) {
+  if (!database.users[user_id]) {
+    database.users[user_id] = {};
+  }
+
+  database.users[user_id].parameters = parameters;
+}
 
 /*
  * Delivery Confirmation Event
@@ -572,7 +676,7 @@ function sendButtonMessage(recipientId) {
  * Send a Structured Message (Generic Message type) using the Send API.
  *
  */
-function sendGenericMessage(recipientId) {
+function sendGenericMessage(recipientId, elements) {
   var messageData = {
     recipient: {
       id: recipientId
@@ -582,35 +686,7 @@ function sendGenericMessage(recipientId) {
         type: "template",
         payload: {
           template_type: "generic",
-          elements: [{
-            title: "rift",
-            subtitle: "Next-generation virtual reality",
-            item_url: "https://www.oculus.com/en-us/rift/",               
-            image_url: SERVER_URL + "/assets/rift.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/rift/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for first bubble",
-            }],
-          }, {
-            title: "touch",
-            subtitle: "Your Hands, Now in VR",
-            item_url: "https://www.oculus.com/en-us/touch/",               
-            image_url: SERVER_URL + "/assets/touch.png",
-            buttons: [{
-              type: "web_url",
-              url: "https://www.oculus.com/en-us/touch/",
-              title: "Open Web URL"
-            }, {
-              type: "postback",
-              title: "Call Postback",
-              payload: "Payload for second bubble",
-            }]
-          }]
+          elements: elements
         }
       }
     }
@@ -689,30 +765,20 @@ function sendReceiptMessage(recipientId) {
  * Send a message with Quick Reply buttons.
  *
  */
-function sendQuickReply(recipientId) {
+function sendQuickReply(recipientId, title, replies) {
   var messageData = {
     recipient: {
       id: recipientId
     },
     message: {
-      text: "What's your favorite movie genre?",
-      quick_replies: [
-        {
-          "content_type":"text",
-          "title":"Action",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_ACTION"
-        },
-        {
-          "content_type":"text",
-          "title":"Comedy",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_COMEDY"
-        },
-        {
-          "content_type":"text",
-          "title":"Drama",
-          "payload":"DEVELOPER_DEFINED_PAYLOAD_FOR_PICKING_DRAMA"
+      text: title,
+      quick_replies: replies.map((x) => {
+        return {
+          "content_type": "text",
+          "title": x,
+          "payload": x
         }
-      ]
+      })
     }
   };
 
