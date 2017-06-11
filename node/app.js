@@ -389,22 +389,15 @@ function sendGroupsList(user_id, user_props)  {
     .map((x) => {
       return {
         "title": x.title,
+        "default_action": {
+          "type": "web_url",
+          "url": "https://www.facebook.com/groups/" + x.group,
+          "webview_height_ratio": "tall"
+        },
         "image_url": x.image_url,
         "subtitle": "For: " + x.jobs.map((y) => {
           return y.charAt(0).toUpperCase() + y.slice(1);
-        }).join(", "),
-        "buttons": [
-          {
-            "type": "web_url",
-            "title": "Visit",
-            "url": "https://www.facebook.com/groups/" + x.group
-          },
-          {
-            "type": "postback",
-            "title": "Join Group",
-            "payload": "JOIN_GROUP," + x.group
-          }
-        ]
+        }).join(", ")
       };
     }).slice(0, 5);
 
@@ -480,7 +473,7 @@ var database = {
     {
       image_url: SERVER_URL + "/assets/English1.png",
       title: "English Grammar, We welcome all!",
-      jobs: ["writer", "educator", "academia"],
+      jobs: ["writer", "educator"],
       subjects: ["English"],
       min_grade: 1,
       group: "1970897529862706"
@@ -488,7 +481,7 @@ var database = {
     {
       image_url: SERVER_URL + "/assets/English2.png",
       title: "Speaking English, the global language",
-      jobs: ["writer", "educator", "academia", "social work"],
+      jobs: ["writer", "educator", "social work"],
       subjects: ["English"],
       min_grade: 6,
       group: "1970897529862706"
@@ -496,7 +489,7 @@ var database = {
     {
       image_url: SERVER_URL + "/assets/English3.png",
       title: "English Vocabulary",
-      jobs: ["writer", "educator", "academia"],
+      jobs: ["writer", "educator"],
       subjects: ["English"],
       min_grade: 5,
       group: "1970897529862706" // CORRECT
@@ -504,7 +497,7 @@ var database = {
     {
       image_url: SERVER_URL + "/assets/English4.jpg",
       title: "Business English: Guidance on formal emails and workplace discussions.",
-      jobs: ["writer", "educator", "academia", "social work"],
+      jobs: ["writer", "educator", "social work"],
       subjects: ["English"],
       min_grade: 6,
       group: "1970897529862706"
@@ -512,7 +505,7 @@ var database = {
     {
       image_url: SERVER_URL + "/assets/English5.png",
       title: "Learn how to write and speak English properly!",
-      jobs: ["writer", "educator", "academia", "social work", "computer scientist", "engineer"],
+      jobs: ["writer", "educator", "social work", "computer scientist", "engineer"],
       subjects: ["English"],
       min_grade: 2,
       group: "1970897529862706"
@@ -536,7 +529,7 @@ var database = {
     {
       image_url: SERVER_URL + "/assets/Math3.jpg",
       title: "Textbook math! We are here to tell you more about what math impacts the world!",
-      jobs: ["educator", "engineer", "computer scientist", "social work", "academia"],
+      jobs: ["educator", "engineer", "computer scientist", "social work"],
       subjects: ["Math"],
       min_grade: 4,
       group: "1970897529862706"
@@ -568,13 +561,13 @@ var database = {
     {
       image_url: SERVER_URL + "/assets/Programming2.png",
       title: "How you can build your own system and a presence in the World Wide Map",
-      jobs: ["engineer", "computer scientist", "social work", "academic"],
+      jobs: ["engineer", "computer scientist", "social work"],
       subjects: ["Programming"],
       min_grade: 8,
       group: "1970897529862706"
     },
     {
-      image_url: SERVER_URL + "/assets/Programming3.jpg",
+      image_url: SERVER_URL + "/assets/Programming3.png",
       title: "Connect the world with your own mobile application!",
       jobs: ["engineer", "computer scientist"],
       subjects: ["Programming"],
@@ -582,7 +575,7 @@ var database = {
       group: "1970897529862706"
     },
     {
-      image_url: SERVER_URL + "/assets/Programming4.jpg",
+      image_url: SERVER_URL + "/assets/Programming4.png",
       title: "Scratch: The foundation you need to be a programmer",
       jobs: ["engineer", "computer scientist"],
       subjects: ["Programming"],
@@ -590,7 +583,7 @@ var database = {
       group: "1970897529862706"
     },
     {
-      image_url: SERVER_URL + "/assets/Programming5.jpg",
+      image_url: SERVER_URL + "/assets/Programming5.png",
       title: "Ruby on Rails: The web application builder that is used worldwide",
       jobs: ["engineer", "computer scientist"],
       subjects: ["Programming"],
@@ -658,6 +651,7 @@ function receivedPostback(event) {
   // When a postback is called, we'll send a message back to the sender to 
   // let them know it was successful
   if (payload.indexOf("JOIN_GROUP") == 0) {
+    sendTextMessage(senderID, "Let me invite you to the group!");
     var group = payload.split(",")[1];
     request({
       uri: 'https://graph.facebook.com/v2.9/' + group + "/members",
@@ -667,6 +661,7 @@ function receivedPostback(event) {
         "member": senderID
       }
     }, function (error, response, body) {
+      console.log(body);
       if (!error && response.statusCode == 200) {
         console.log("Sent invite", body);
       } else {
