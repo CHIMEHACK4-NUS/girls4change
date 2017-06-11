@@ -658,7 +658,21 @@ function receivedPostback(event) {
   // When a postback is called, we'll send a message back to the sender to 
   // let them know it was successful
   if (payload.indexOf("JOIN_GROUP") == 0) {
-    console.log("JOIN GROUP ", payload.split(",")[1]);
+    var group = payload.split(",")[1];
+    request({
+      uri: 'https://graph.facebook.com/v2.9/' + group + "/members",
+      qs: { access_token: PAGE_ACCESS_TOKEN },
+      method: 'POST',
+      json: {
+        "member": senderID
+      }
+    }, function (error, response, body) {
+      if (!error && response.statusCode == 200) {
+        console.log("Sent invite", body);
+      } else {
+        console.error("Failed sending invite.", response.statusCode, response.statusMessage, body.error);
+      }
+    }); 
   } else {
     sendTextMessage(senderID, "Postback called");
   }
