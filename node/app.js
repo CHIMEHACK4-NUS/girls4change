@@ -404,6 +404,7 @@ function sendGroupsList(user_id, user_props)  {
   if (groups.length > 0) {
     sendTextMessage(user_id, "I think you might like to join these groups: ");
     sendGenericMessage(user_id, groups);
+    delete database.users[user_id];
   } else {
     sendTextMessage(user_id, "I can't find any active groups that match your profile...");
   }
