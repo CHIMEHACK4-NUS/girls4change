@@ -246,9 +246,9 @@ function receivedMessage(event) {
     var quickReplyPayload = quickReply.payload;
     console.log("Quick reply for message %s with payload %s",
       messageId, quickReplyPayload);
-      console.log(quickReplyPayload);
 
-    sendTextMessage(senderID, "Quick reply tapped");
+      sendToApiAi(senderID, quickReplyPayload.quick_reply.payload);
+      
     return;
   }
 
@@ -381,7 +381,12 @@ function sendGroupsList(user_id, user_props)  {
 
       return true;
 
-    }).map((x) => {
+    }).sort(
+      (a, b) => {
+        return a.min_grade < b.min_grade;
+      }
+    )
+    .map((x) => {
       return {
         "title": x.title,
         "image_url": x.image_url,
@@ -392,16 +397,19 @@ function sendGroupsList(user_id, user_props)  {
           {
             "type": "web_url",
             "title": "Visit",
-            "url": "http://facebook.com"
+            "url": "https://www.facebook.com/groups/" + x.group
           },
           {
             "type": "postback",
             "title": "Join Group",
-            "payload": "JOIN_GROUP"
+            "payload": {
+              "type": "JOIN_GROUP",
+              "group": x.group
+            }
           }
         ]
       };
-    });
+    }).slice(0, 5);
 
   if (groups.length > 0) {
     sendTextMessage(user_id, "I think you might like to join these groups: ");
@@ -494,7 +502,7 @@ var database = {
       jobs: ["writer", "educator", "academia"],
       subjects: ["English"],
       min_grade: 5,
-      url: "http://facebook.com"
+      group: "1970897529862706"
     },
     {
       image_url: SERVER_URL + "/assets/English4.jpg",
@@ -558,7 +566,7 @@ var database = {
       jobs: ["engineer", "computer scientist"],
       subjects: ["Programming"],
       min_grade: 7,
-      url: "https://www.facebook.com/Python-Coding-the-future-Girls-4-Change-305678959885317/"
+      url: "http://facebook.com"
     },
     {
       image_url: SERVER_URL + "/assets/Programming2.png",
@@ -652,8 +660,8 @@ function receivedPostback(event) {
 
   // When a postback is called, we'll send a message back to the sender to 
   // let them know it was successful
-  if (payload == "JOIN_GROUP") {
-    
+  if (payload && payload.type == "JOIN_GROUP") {
+    console.log("JOIN GROUP ", group);
   } else {
     sendTextMessage(senderID, "Postback called");
   }
