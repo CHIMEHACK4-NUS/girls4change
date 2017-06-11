@@ -246,6 +246,7 @@ function receivedMessage(event) {
     var quickReplyPayload = quickReply.payload;
     console.log("Quick reply for message %s with payload %s",
       messageId, quickReplyPayload);
+      console.log(quickReplyPayload);
 
     sendTextMessage(senderID, "Quick reply tapped");
     return;
@@ -313,7 +314,7 @@ function receivedMessage(event) {
         if (!database.users[senderID]) {
           getUser(senderID, function(user) {
             updateParams(senderID, {
-              'user-name': (user['first_name'] + ' ' + user['last_name'])
+              'user-name': user['first_name']
             });
 
             sendToApiAi(senderID, messageText);
@@ -329,6 +330,8 @@ function receivedMessage(event) {
 }
 
 function sendToApiAi(senderID, messageText) {
+  sendTypingOn(senderID);
+
   var parameters = database.users[senderID]
   console.log(senderID, messageText, parameters);
   var request = apiai_app.textRequest(messageText, {
@@ -345,6 +348,7 @@ function sendToApiAi(senderID, messageText) {
       console.log(senderID, response);
       updateParams(senderID, response.result.parameters);
       sendApiAiMessages(senderID, response.result.fulfillment.messages);
+      sendTypingOff(senderID);
   });
 
   request.on('error', function(error) {
@@ -354,79 +358,114 @@ function sendToApiAi(senderID, messageText) {
   request.end();
 }
 
-function sendGroupsList(user_id, age, subject, grade)  {
-  sendGenericMessage(user_id, database.groups.filter((x) => {
-      if (x.subject == subject && gradeToLevel(grade) == x.level) {
-        return true;
-      } else {
-        return false;
+function sendGroupsList(user_id, user_props)  {
+  console.log("Final params for ", user_id, user_props);
+  var groups = database.groups.filter((x) => {
+      if (user_props['job']) {
+        if (x.jobs.indexOf(user_props['job']) == -1) {
+          return false;
+        }
+      } 
+      
+      if (user_props['grade']) {
+        if (x.min_grade > parseInt(user_props['grade'])) {
+          return false;
+        }
       }
+
+      if (user_props['subject']) {
+        if (x.subjects.indexOf(user_props['subject']) == -1) {
+          return false;
+        }
+      }
+
+      return true;
+
     }).map((x) => {
       return {
         "title": x.title,
         "image_url": x.image_url,
-        "subtitle": x.subject + " / " + x.level,
+        "subtitle": "For: " + x.jobs.map((y) => {
+          return y.charAt(0).toUpperCase() + y.slice(1);
+        }).join(", "),
         "buttons": [
           {
-            "type":"web_url",
-            "title": "LOL",
+            "type": "web_url",
+            "title": "Visit",
             "url": "http://facebook.com"
-          }, 
+          },
           {
             "type": "postback",
-            "title": "LOL2",
-            "payload": "PAYLOAD"
+            "title": "Join Group",
+            "payload": "JOIN_GROUP"
           }
         ]
       };
-    }));
-}
+    });
 
-function gradeToLevel(grade) {
-  if (grade >= 1 && grade <= 3) {
-    return "Beginner";
+  if (groups.length > 0) {
+    sendTextMessage(user_id, "I think you might like to join these groups: ");
+    sendGenericMessage(user_id, groups);
+  } else {
+    sendTextMessage(user_id, "I can't find any active groups that match your profile...");
   }
-
-  return "Hardcore";
 }
 
 function sendApiAiMessages(user_id, messages) {
   console.log("Messages: ", JSON.stringify(messages));
   var isSent = false;
 
-  for (var i = 0; i < messages.length; i ++) {
-    var message = messages[i];
+  var imageMessages = messages.filter((x) => x.type == 3);
 
-    switch(message.type) {
-      case 0:
-        if (!isSent) {
-          sendTextMessage(user_id, message.speech);
-          isSent = true;
-        }
-        break;
-      case 2:
-        sendQuickReply(user_id, message.title, message.replies);
-        break;
-      case 3:
-        sendImageMessage(user_id, message.imageUrl);
-        break;
-      case 4:
-        processCustom(user_id, message);
-        break;
-    }
+  for (var i in imageMessages) {
+    var message = imageMessages[i];
+    sendImageMessage(user_id, message.imageUrl);
   }
+
+  var textMessages = messages.filter((x) => x.type == 0);
+
+  if (textMessages.length > 0) {
+    sendTextMessage(user_id, textMessages[0].speech);
+  }
+
+  var quickReplies = messages.filter((x) => x.type == 2);
+
+  for (var i in quickReplies) {
+    var message = quickReplies[i];
+    sendQuickReply(user_id, message.title, message.replies);
+  }
+
+  var customMessages = messages.filter((x) => x.type == 4);
+
+  if (customMessages.length > 0) {
+    var message = customMessages[0];
+    processCustom(user_id, message);
+  }
+
 }
 
 function processCustom(user_id, message) {
-  console.log("Custom", message);
-  switch(message.intent) {
+  console.log("Custom", message.payload);
+  switch(message.payload.intent) {
     case "find_groups":
-        var user = users[user_id];
-        var params = user.parameters;
-        sendGroupsList(senderID, params['user-age']['amount'], params['subject-availability'], params['user-grade']);
+        var user = database.users[user_id];
+        
+        setTimeout(function() {
+          sendTypingOn(user_id);
+          setTimeout(function() {
+            sendTypingOff(user_id);
+            sendGroupsList(user_id, {
+              'age': user['user-age']['amount'], 
+              'subject': user['subject-availability'], 
+              'grade': user['user-grade'],
+              'job': user['user-aspiration']
+            });
+          }, 1000);
+        }, 1000);
+        
       break;
     default: 
-      console.log("Invalid intent: ", message);
+      console.log("Invalid intent: ", message.payload);
   }
 }
 
@@ -434,18 +473,124 @@ var database = {
   users: [],
   groups: [
     {
-      image_url: SERVER_URL + "/assets/touch.png",
-      title: "Introduction to Python",
-      subject: "Programming",
-      level: "Beginner",
-      leader: "Amena"
+      image_url: SERVER_URL + "/assets/English1.png",
+      title: "English Grammar, We welcome all!",
+      jobs: ["writer", "educator", "academia"],
+      subjects: ["English"],
+      min_grade: 1,
+      url: "http://facebook.com"
     },
     {
-      image_url: SERVER_URL + "/assets/gearvrsq.png",
-      title: "Java in 5 Easy Lessons",
-      subject: "Programming",
-      level: "Beginner",
-      leader: "UNICEF Volunteer Teacher"
+      image_url: SERVER_URL + "/assets/English2.png",
+      title: "Speaking English, the global language",
+      jobs: ["writer", "educator", "academia", "social work"],
+      subjects: ["English"],
+      min_grade: 6,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/English3.png",
+      title: "English Vocabulary",
+      jobs: ["writer", "educator", "academia"],
+      subjects: ["English"],
+      min_grade: 5,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/English4.jpg",
+      title: "Business English: Guidance on formal emails and workplace discussions.",
+      jobs: ["writer", "educator", "academia", "social work"],
+      subjects: ["English"],
+      min_grade: 6,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/English5.png",
+      title: "Learn how to write and speak English properly!",
+      jobs: ["writer", "educator", "academia", "social work", "computer scientist", "engineer"],
+      subjects: ["English"],
+      min_grade: 2,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Math1.png",
+      title: "Mental Sums: Learn how to develop effective counting methods",
+      jobs: ["educator", "engineer", "computer scientist"],
+      subjects: ["Math"],
+      min_grade: 2,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Math2.png",
+      title: "Logic is fun! Join us for classes on math and problem solving using puzzles.",
+      jobs: ["educator", "engineer", "computer scientist"],
+      subjects: ["Math"],
+      min_grade: 3,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Math3.jpg",
+      title: "Textbook math! We are here to tell you more about what math impacts the world!",
+      jobs: ["educator", "engineer", "computer scientist", "social work", "academia"],
+      subjects: ["Math"],
+      min_grade: 4,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Math4.jpg",
+      title: "Basic algebra, the math that build our world today.",
+      jobs: ["educator", "engineer", "computer scientist"],
+      subjects: ["Math"],
+      min_grade: 3,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Math5.jpg",
+      title: "Mathemagic, Learn the coolest ways you can use math to have fun",
+      jobs: ["educator", "engineer", "computer scientist", "social work"],
+      subjects: ["Math"],
+      min_grade: 1,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Programming1.png",
+      title: "Python: Coding the future",
+      jobs: ["engineer", "computer scientist"],
+      subjects: ["Programming"],
+      min_grade: 7,
+      url: "https://www.facebook.com/Python-Coding-the-future-Girls-4-Change-305678959885317/"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Programming2.png",
+      title: "How you can build your own system and a presence in the World Wide Map",
+      jobs: ["engineer", "computer scientist", "social work", "academic"],
+      subjects: ["Programming"],
+      min_grade: 8,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Programming3.jpg",
+      title: "Connect the world with your own mobile application!",
+      jobs: ["engineer", "computer scientist"],
+      subjects: ["Programming"],
+      min_grade: 6,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Programming4.jpg",
+      title: "Scratch: The foundation you need to be a programmer",
+      jobs: ["engineer", "computer scientist"],
+      subjects: ["Programming"],
+      min_grade: 3,
+      url: "http://facebook.com"
+    },
+    {
+      image_url: SERVER_URL + "/assets/Programming5.jpg",
+      title: "Ruby on Rails: The web application builder that is used worldwide",
+      jobs: ["engineer", "computer scientist"],
+      subjects: ["Programming"],
+      min_grade: 5,
+      url: "http://facebook.com"
     }
   ]
 }
@@ -507,7 +652,11 @@ function receivedPostback(event) {
 
   // When a postback is called, we'll send a message back to the sender to 
   // let them know it was successful
-  sendTextMessage(senderID, "Postback called");
+  if (payload == "JOIN_GROUP") {
+    
+  } else {
+    sendTextMessage(senderID, "Postback called");
+  }
 }
 
 /*
