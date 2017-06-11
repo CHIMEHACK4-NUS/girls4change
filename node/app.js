@@ -310,7 +310,18 @@ function receivedMessage(event) {
       //   break;
 
       default:
-        sendToApiAi(senderID, messageText);
+        if (!database.users[senderID]) {
+          getUser(senderID, function(user) {
+            updateParams(senderID, {
+              'user-name': (user['first_name'] + ' ' + user['last_name'])
+            });
+
+            sendToApiAi(senderID, messageText);
+          })
+          
+        } else {
+          sendToApiAi(senderID, messageText);
+        }
     }
   } else if (messageAttachments) {
     sendTextMessage(senderID, "Message with attachment received");
@@ -318,22 +329,22 @@ function receivedMessage(event) {
 }
 
 function sendToApiAi(senderID, messageText) {
-  console.log(senderID, messageText);
+  var parameters = database.users[senderID]
+  console.log(senderID, messageText, parameters);
   var request = apiai_app.textRequest(messageText, {
-      sessionId: senderID
+      "sessionId": senderID,
+      "contexts": [
+        {
+          "name": "facebook",
+          "parameters": parameters
+        }
+      ]
   });
 
   request.on('response', function(response) {
       console.log(senderID, response);
-      checkParamsForApiAi(senderID, response.result.parameters);
-      if (messageText == "TEST") {
-        var age = 15;
-        var subject = "Programming";
-        var grade = 2;
-        sendGroupsList(senderID, age, subject, grade);
-      } else {
-        sendApiAiMessages(senderID, response.result.fulfillment.messages);
-      }
+      updateParams(senderID, response.result.parameters);
+      sendApiAiMessages(senderID, response.result.fulfillment.messages);
   });
 
   request.on('error', function(error) {
@@ -380,16 +391,43 @@ function gradeToLevel(grade) {
 }
 
 function sendApiAiMessages(user_id, messages) {
-    messages.forEach((x) => {
-      switch(x.type) {
-        case 0:
-          sendTextMessage(user_id, x.speech);
-          break;
-        case 2:
-          sendQuickReply(user_id, x.title, x.replies);
-          break;
-      }
-    });
+  console.log("Messages: ", JSON.stringify(messages));
+  var isSent = false;
+
+  for (var i = 0; i < messages.length; i ++) {
+    var message = messages[i];
+
+    switch(message.type) {
+      case 0:
+        if (!isSent) {
+          sendTextMessage(user_id, message.speech);
+          isSent = true;
+        }
+        break;
+      case 2:
+        sendQuickReply(user_id, message.title, message.replies);
+        break;
+      case 3:
+        sendImageMessage(user_id, message.imageUrl);
+        break;
+      case 4:
+        processCustom(user_id, message);
+        break;
+    }
+  }
+}
+
+function processCustom(user_id, message) {
+  console.log("Custom", message);
+  switch(message.intent) {
+    case "find_groups":
+        var user = users[user_id];
+        var params = user.parameters;
+        sendGroupsList(senderID, params['user-age']['amount'], params['subject-availability'], params['user-grade']);
+      break;
+    default: 
+      console.log("Invalid intent: ", message);
+  }
 }
 
 var database = {
@@ -412,12 +450,14 @@ var database = {
   ]
 }
 
-function checkParamsForApiAi(user_id, parameters) {
+function updateParams(user_id, parameters) {
   if (!database.users[user_id]) {
     database.users[user_id] = {};
   }
 
-  database.users[user_id].parameters = parameters;
+  for (var key in parameters) {
+    database.users[user_id][key] = parameters[key];
+  }
 }
 
 /*
@@ -512,7 +552,7 @@ function receivedAccountLink(event) {
  * Send an image using the Send API.
  *
  */
-function sendImageMessage(recipientId) {
+function sendImageMessage(recipientId, image_url) {
   var messageData = {
     recipient: {
       id: recipientId
@@ -521,7 +561,7 @@ function sendImageMessage(recipientId) {
       attachment: {
         type: "image",
         payload: {
-          url: SERVER_URL + "/assets/rift.png"
+          url: image_url
         }
       }
     }
@@ -889,6 +929,20 @@ function callSendAPI(messageData) {
       }
     } else {
       console.error("Failed calling Send API", response.statusCode, response.statusMessage, body.error);
+    }
+  });  
+}
+
+function getUser(user_id, callback) {
+   request({
+    uri: 'https://graph.facebook.com/v2.6/' + user_id,
+    qs: { fields: "first_name,last_name,profile_pic,locale,timezone,gender", access_token: PAGE_ACCESS_TOKEN },
+    method: 'GET'
+  }, function (error, response, body) {
+    if (!error && response.statusCode == 200) {
+      callback(JSON.parse(body));
+    } else {
+      console.error("Failed getting user profile", response.statusCode, response.statusMessage, body.error);
     }
   });  
 }
