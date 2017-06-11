@@ -19,7 +19,7 @@ const
   request = require('request'),
   apiai = require('apiai');
 
-var apiai_app = apiai("e04a7358ee1a474d846d05fd679b7a8c");
+var apiai_app = apiai("fcffe8348a284cc2945c0988d36b1c6b");
 var app = express();
 app.set('port', 1882);
 app.set('view engine', 'ejs');
